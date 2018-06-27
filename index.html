@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="X-UA-Compatible" content="ie=edge">
+  <style>
+    th {
+      text-align: left;
+      width: 200px;
+    }
+  </style>
+  <script src="https://unpkg.com/vue"></script>
+  <script src="https://cdn.jsdelivr.net/gh/ethereum/web3.js/dist/web3.min.js"></script>
+  <title>Document</title>
+</head>
+<body>
+  <div id="app">
+    <table>
+      <thead>
+        <tr>
+          <th>Candidate</th>
+          <th>Votes</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr v-for="candidate in candidates" :key="candidate.id">
+          <td>{{ candidate.name }}</td>
+          <td>{{ candidate.votes }}</td>
+          <td><button role="button" @click="voteForCandidateAndUpdateVotes(candidate)">Vote</button></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <script>
+    const web3 = new Web3(new Web3.providers.HttpProvider('http://localhost:8545'));
+    const abi = [{"constant":true,"inputs":[{"name":"candidate","type":"bytes32"}],"name":"totalVotesFor","outputs":[{"name":"","type":"uint8"}],"payable":false,"stateMutability":"view","type":"function"},{"constant":true,"inputs":[{"name":"","type":"uint256"}],"name":"candidates","outputs":[{"name":"","type":"bytes32"}],"payable":false,"stateMutability":"view","type":"function"},{"constant":true,"inputs":[{"name":"","type":"bytes32"}],"name":"votesReceived","outputs":[{"name":"","type":"uint8"}],"payable":false,"stateMutability":"view","type":"function"},{"constant":false,"inputs":[{"name":"candidate","type":"bytes32"}],"name":"vote","outputs":[],"payable":false,"stateMutability":"nonpayable","type":"function"},{"inputs":[{"name":"candidateNames","type":"bytes32[]"}],"payable":false,"stateMutability":"nonpayable","type":"constructor"}]
+    const address = '0xC35842F0645399BcC5d019AAB6931B3213dB3385'
+
+    function getAccount() {
+      return new Promise(function(resolve, reject) {
+        web3.eth.getAccounts((err, accounts) => {
+          if (err) reject(err)
+          else resolve(accounts[0])
+        })
+      })
+    }
+
+    function getContract(abi, address) {
+      return new Promise(function(resolve, reject) {
+        web3.eth.contract(abi).at(address, (err, contract) => {
+          if (err) reject(err)
+          else resolve(contract)
+        })
+      })
+    }
+    
+    const app = (account, contract) => ({
+      el: '#app',
+      data: {
+        candidates: [ {
+          id: 0, name: 'Jose', votes: 0
+        }, {
+          id: 1, name: 'Rama', votes: 0
+        }, {
+          id: 2, name: 'Nick', votes: 0
+        } ],
+      },
+      mounted () {
+        this.candidates.forEach(candidate => {
+          this.getVotesFor(candidate.name).then(result => candidate.votes = result)
+        })
+      },
+      methods: {
+        getVotesFor (candidate) {
+          return new Promise(function(resolve, reject) {
+            contract.totalVotesFor(candidate, { from: account }, (err, result) => {
+              if (err) reject(err)
+              else resolve(result)
+            })
+          })
+        },
+        vote (candidate) {
+          return new Promise(function(resolve, reject) {
+            contract.vote(candidate, { from: account }, (err, result) => {
+              if (err) reject(err)
+              else resolve(result)
+            })
+          })
+        },
+        voteForCandidateAndUpdateVotes (candidate) {
+          this.vote(candidate.name)
+            .then(() => this.getVotesFor(candidate.name))
+            .then(votes => { candidate.votes = votes })
+        }
+      }
+    })
+
+    Promise
+      .all([ getAccount(), getContract(abi, address) ])
+      .then(([ account, contract ]) => new Vue(app(account, contract)))
+  </script>
+</body>
+</html>
