@@ -3,5 +3,6 @@
   "solidity.soliumRules": {
     "quotes": [ "error", "single" ],
     "indentation": [ "error", 2 ]
-  }
+  },
+  "git.ignoreLimitWarning": true
 }
